@@ -6,8 +6,8 @@ import requests
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 
-url = "http://172.30.1.98:8080/test/cam"
-cap = cv2.VideoCapture(0)
+url = "http://223.194.134.172:8080/test/cam"
+cap = cv2.VideoCapture(1)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
 
