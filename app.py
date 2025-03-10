@@ -4,6 +4,7 @@ from ultralytics import YOLO
 from PIL import Image
 import numpy as np
 import cv2
+import requests
 
 app = Flask(__name__)
 
@@ -13,7 +14,7 @@ RESULT_FOLDER = 'results/'  # 결과 폴더 설정
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RESULT_FOLDER'] = RESULT_FOLDER
 
-# YOLO 모델 로드 (여기서는 자세 추정 모델을 로드)
+# YOLO 모델 로드 (여기서는 'yolo11m-pose.pt' 모델을 로드)
 model = YOLO("yolo11m-pose.pt")
 
 # 업로드된 파일을 저장하고 바로 처리하는 엔드포인트
@@ -27,6 +28,9 @@ def upload_file():
     if file.filename == '':
         return jsonify(message="파일 이름이 비어 있습니다."), 400
     
+    # 파일 확장자 체크 (이미지 또는 비디오)
+    file_extension = file.filename.split('.')[-1].lower()
+
     # 파일 저장 경로
     filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
     
@@ -38,15 +42,72 @@ def upload_file():
         # 파일 저장
         file.save(filename)
         print(f"파일 저장 성공: {filename}")  # 로그 추가
+
+        # 이미지 또는 비디오 파일 처리
+        if file_extension in ['mp4', 'avi', 'mov']:
+            process_video(filename)  # 비디오 처리 함수 호출
+        else:
+            process_image(filename)  # 이미지 처리 함수 호출
+
+        return jsonify(message="처리 완료되었습니다."), 200
+
+    except Exception as e:
+        print(f"오류 발생: {str(e)}")  # 오류 로그
+        return jsonify(message=f"파일 저장 중 오류 발생: {str(e)}"), 500
+
+
+def process_video(video_path):
+    try:
+        # YOLO로 비디오 파일 전체 처리 (비디오 결과를 그대로 반환)
+        results = model(video_path, stream=True)  # generator 형태로 결과를 반환
         
-        # 이미지 파일 처리 (YOLO 모델을 사용하여 결과 생성)
-        results = model(filename)
+        # 결과를 저장할 임시 비디오 파일 경로 (이름에 "_after" 추가)
+        result_video_name = video_path.split('/')[-1].split('.')[0] + '_after.mp4'
+        result_video_path = os.path.join(app.config['RESULT_FOLDER'], result_video_name)
         
-        # 결과를 저장할 폴더가 없으면 생성
-        result_path = os.path.join(app.config['RESULT_FOLDER'], 'image_results')
-        if not os.path.exists(result_path):
-            os.makedirs(result_path)
+        # 비디오 캡처 객체로 입력 비디오 열기
+        cap = cv2.VideoCapture(video_path)
         
+        # 비디오의 프레임 크기 (너비, 높이) 가져오기
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        # 결과 비디오를 저장할 VideoWriter 객체 설정
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(result_video_path, fourcc, 30.0, (frame_width, frame_height))
+        
+        # generator를 순차적으로 처리하여 각 프레임을 처리
+        for result in results:
+            # 각 프레임에 대한 YOLO 결과 이미지 얻기
+            annotated_frame = result.plot()  # YOLO 결과 이미지 (프레임에 주석 달린 이미지)
+            
+            # 주석이 달린 이미지를 비디오로 저장
+            out.write(annotated_frame)
+        
+        # 비디오 저장 완료
+        out.release()
+        cap.release()  # 비디오 캡처 객체 해제
+
+        print(f"결과 동영상 저장 성공: {result_video_path}")
+
+        # 처리된 동영상을 Spring 서버로 전송
+        send_file_to_spring(result_video_path)
+
+        print("비디오 처리 완료.")
+
+    except Exception as e:
+        print(f"비디오 처리 중 오류 발생: {str(e)}")
+
+
+def process_image(image_path):
+    try:
+        # YOLO 모델로 이미지 처리
+        results = model(image_path)
+
+        # 결과 이미지 저장 경로 (RESULT_FOLDER에 저장)
+        result_image_name = image_path.split('/')[-1].split('.')[0] + '_after.' + image_path.split('.')[-1]
+        result_image_path = os.path.join(app.config['RESULT_FOLDER'], result_image_name)
+
         # YOLO 결과로 주석이 달린 이미지를 생성 (numpy.ndarray 반환)
         annotated_image = results[0].plot()  # 결과 이미지를 얻음
         
@@ -56,21 +117,36 @@ def upload_file():
         # numpy.ndarray -> PIL.Image 변환
         pil_image = Image.fromarray(annotated_image_rgb)
         
-        # 결과 이미지 저장 경로
-        result_image_path = os.path.join(result_path, file.filename)
-        
         # 이미지를 저장
         pil_image.save(result_image_path)
         print(f"결과 이미지 저장 성공: {result_image_path}")  # 로그 추가
 
-        return jsonify(
-            message="이미지 처리 완료. 결과 이미지를 확인하세요.",
-            result_image=result_image_path
-        ), 200
+        # 처리된 이미지를 Spring 서버로 전송
+        send_file_to_spring(result_image_path)
 
     except Exception as e:
-        print(f"오류 발생: {str(e)}")  # 오류 로그
-        return jsonify(message=f"파일 저장 중 오류 발생: {str(e)}"), 500
+        print(f"이미지 처리 중 오류 발생: {str(e)}")
+
+
+def send_file_to_spring(file_path):
+    try:
+        # Spring 서버의 파일 업로드 URL (수정 필요)
+        spring_server_url = "http://223.194.134.172:8080/test/cam_after_flask"
+        
+        # 파일을 전송하기 위한 파일 열기
+        with open(file_path, 'rb') as file:
+            files = {'file': (os.path.basename(file_path), file)}
+            
+            # Spring 서버로 POST 요청
+            response = requests.post(spring_server_url, files=files)
+            
+            if response.status_code == 200:
+                print(f"Spring 서버로 파일 전송 성공: {file_path}")
+            else:
+                print(f"Spring 서버로 파일 전송 실패: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"Spring 서버로 파일 전송 중 오류 발생: {str(e)}")
+
 
 if __name__ == '__main__':
     # 폴더가 없으면 생성
