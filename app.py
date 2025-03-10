@@ -1,10 +1,9 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import os
 from ultralytics import YOLO
 from PIL import Image
 import numpy as np
 import cv2
-import requests
 
 app = Flask(__name__)
 
@@ -45,11 +44,11 @@ def upload_file():
 
         # 이미지 또는 비디오 파일 처리
         if file_extension in ['mp4', 'avi', 'mov']:
-            process_video(filename)  # 비디오 처리 함수 호출
+            processed_video_path = process_video(filename)  # 비디오 처리 함수 호출
+            return send_file(processed_video_path, as_attachment=True)  # 처리된 비디오 반환
         else:
-            process_image(filename)  # 이미지 처리 함수 호출
-
-        return jsonify(message="처리 완료되었습니다."), 200
+            processed_image_path = process_image(filename)  # 이미지 처리 함수 호출
+            return send_file(processed_image_path, as_attachment=True)  # 처리된 이미지 반환
 
     except Exception as e:
         print(f"오류 발생: {str(e)}")  # 오류 로그
@@ -74,7 +73,7 @@ def process_video(video_path):
         
         # 결과 비디오를 저장할 VideoWriter 객체 설정
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(result_video_path, fourcc, 30.0, (frame_width, frame_height))
+        out = cv2.VideoWriter(result_video_path, fourcc, 20.0, (frame_width, frame_height))
         
         # generator를 순차적으로 처리하여 각 프레임을 처리
         for result in results:
@@ -90,10 +89,7 @@ def process_video(video_path):
 
         print(f"결과 동영상 저장 성공: {result_video_path}")
 
-        # 처리된 동영상을 Spring 서버로 전송
-        send_file_to_spring(result_video_path)
-
-        print("비디오 처리 완료.")
+        return result_video_path  # 처리된 비디오 경로 반환
 
     except Exception as e:
         print(f"비디오 처리 중 오류 발생: {str(e)}")
@@ -121,31 +117,10 @@ def process_image(image_path):
         pil_image.save(result_image_path)
         print(f"결과 이미지 저장 성공: {result_image_path}")  # 로그 추가
 
-        # 처리된 이미지를 Spring 서버로 전송
-        send_file_to_spring(result_image_path)
+        return result_image_path  # 처리된 이미지 경로 반환
 
     except Exception as e:
         print(f"이미지 처리 중 오류 발생: {str(e)}")
-
-
-def send_file_to_spring(file_path):
-    try:
-        # Spring 서버의 파일 업로드 URL (수정 필요)
-        spring_server_url = "http://223.194.134.172:8080/test/cam_after_flask"
-        
-        # 파일을 전송하기 위한 파일 열기
-        with open(file_path, 'rb') as file:
-            files = {'file': (os.path.basename(file_path), file)}
-            
-            # Spring 서버로 POST 요청
-            response = requests.post(spring_server_url, files=files)
-            
-            if response.status_code == 200:
-                print(f"Spring 서버로 파일 전송 성공: {file_path}")
-            else:
-                print(f"Spring 서버로 파일 전송 실패: {response.status_code} - {response.text}")
-    except Exception as e:
-        print(f"Spring 서버로 파일 전송 중 오류 발생: {str(e)}")
 
 
 if __name__ == '__main__':
