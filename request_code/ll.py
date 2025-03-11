@@ -5,10 +5,12 @@ import requests
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 
-url = "http://223.194.134.172:8080/test/cam"
+url = "http://113.198.83.187:8080/bowling/analyze"
 cap = cv2.VideoCapture(1)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)  
+
+fourcc_h264 = cv2.VideoWriter_fourcc(*'X264')  # H.264 코덱
 
 is_recording = False  # 녹화 여부
 out = None  # VideoWriter 객체 초기화
@@ -52,7 +54,7 @@ while True:
         if not is_recording:  # 녹화 시작
             filename = f"video_{int(time.time())}.mp4"  # mp4 형식으로 파일명 생성
             # XVID 코덱을 사용하는 다른 비디오 포맷으로 저장 (mp4 코덱 호환성 문제 해결)
-            out = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc(*'XVID'), 20.0, (640, 480))  # 640x480으로 설정
+            out = cv2.VideoWriter(filename, fourcc_h264, 20.0, (640, 480))  # 640x480으로 설정
             is_recording = True
             print("녹화를 시작합니다.")
         else:  # 녹화 종료

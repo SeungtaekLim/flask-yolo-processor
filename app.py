@@ -71,9 +71,9 @@ def process_video(video_path):
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         
-        # 결과 비디오를 저장할 VideoWriter 객체 설정
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(result_video_path, fourcc, 20.0, (frame_width, frame_height))
+        fourcc_h264 = cv2.VideoWriter_fourcc(*'X264')  # H.264 코덱
+ 
+        out = cv2.VideoWriter(result_video_path, fourcc_h264, 20.0, (frame_width, frame_height))
         
         # generator를 순차적으로 처리하여 각 프레임을 처리
         for result in results:
