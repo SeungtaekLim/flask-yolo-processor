@@ -16,7 +16,7 @@ app.config['RESULT_FOLDER'] = RESULT_FOLDER
 fourcc_h264 = cv2.VideoWriter_fourcc(*'X264')  # H.264 코덱
 
 # YOLO 모델 로드 (여기서는 'yolo11m-pose.pt' 모델을 로드)
-model = YOLO("yolo11m-pose.pt")
+model = YOLO("model/yolo11m-pose.pt")
 
 # 업로드된 파일을 저장하고 바로 처리하는 엔드포인트
 @app.route('/upload', methods=['POST'])
@@ -85,9 +85,9 @@ def process_video(video_path):
             # 각 프레임에 대한 YOLO 결과 이미지 얻기
             annotated_frame = result.plot()  # YOLO 결과 이미지 (프레임에 주석 달린 이미지)
             # 이미지 크기 조정 (원본 비디오 크기와 일치하도록)
-            annotated_frame_resized = cv2.resize(annotated_frame, (frame_width, frame_height))
+            # annotated_frame_resized = cv2.resize(annotated_frame, (frame_width, frame_height))
             # 주석이 달린 이미지를 비디오로 저장
-            out.write(annotated_frame_resized)
+            out.write(annotated_frame)
         
         # 비디오 저장 완료
         out.release()
