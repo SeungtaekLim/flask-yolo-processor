@@ -47,7 +47,7 @@ def process_video(video_path):
         out.release()
         cap.release()
         
-        analyze.analyze(all_keypoints_data)
+        analyze.analyze(all_keypoints_data, frame_width, frame_height)
         
 
         return result_video_path
