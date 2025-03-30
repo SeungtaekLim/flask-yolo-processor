@@ -91,6 +91,10 @@ def analyze(all_keypoints_data, frame_width, frame_height):
         grade = "BAD"
 
     print(f"Grade: {grade}")
+    
+    guide = "조금 더 열심히 해보세요"
+    
+    return final_score, grade, guide
 
 
 # 오른쪽 어깨 각도 차이 계산 함수

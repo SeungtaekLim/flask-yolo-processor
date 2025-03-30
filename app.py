@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file,  send_from_directory, url_for
 import os
 from processing import process_video, process_image
 from utils import get_video_rotation, rotate_video
@@ -10,6 +10,10 @@ UPLOAD_FOLDER = 'uploads/'
 RESULT_FOLDER = 'results/'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RESULT_FOLDER'] = RESULT_FOLDER
+
+@app.route('/processed-files/<filename>')
+def processed_file(filename):
+    return send_from_directory(RESULT_FOLDER, filename)
 
 # 업로드된 파일을 저장하고 처리하는 엔드포인트
 @app.route('/upload', methods=['POST'])
@@ -40,8 +44,17 @@ def upload_file():
         # 이미지 또는 비디오 파일 처리
         if file_extension in ['mp4', 'avi', 'mov']:
             get_video_rotation(filename)
-            processed_video_path = process_video(filename)  # 비디오 처리 함수 호출
-            return send_file(processed_video_path, as_attachment=True)  # 처리된 비디오 반환
+            final_score, grade, guide, processed_video_path = process_video(filename)  # 비디오 처리 함수 호출
+            
+            video_url = url_for('processed_file', filename=os.path.basename(processed_video_path), _external=True)
+
+            response = {
+                'video_url': video_url,
+                'message1': grade,
+                'message2': guide,
+                'score': final_score  # 예시 점수
+            }
+            return jsonify(response)
         else:
             processed_image_path = process_image(filename)  # 이미지 처리 함수 호출
             return send_file(processed_image_path, as_attachment=True)  # 처리된 이미지 반환
