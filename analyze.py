@@ -1,4 +1,5 @@
 import math
+import text_generation
 
 KEYPOINT_NAMES = [
     "Nose", "Left Eye", "Right Eye", "Left Ear", "Right Ear", 
@@ -92,8 +93,8 @@ def analyze(all_keypoints_data, frame_width, frame_height):
 
     print(f"Grade: {grade}")
     
-    guide = "조금 더 열심히 해보세요"
-    
+    guide = text_generation.evaluate_bowling_form(avg_shoulder_angle_diff, avg_movement, wrist_movement_total, ankle_switch_count)
+    print(guide)
     return final_score, grade, guide
 
 
